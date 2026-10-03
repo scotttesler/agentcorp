@@ -154,13 +154,18 @@
 .observer-shell .tag-plan-ready .agent-tag-activity,
 .observer-shell .tag-error .agent-tag-activity { color: var(--office-warning); }
 .observer-shell .tag-error { border-style: dashed; border-color: var(--office-warning); }
-.observer-shell .agent-hover { max-width: min(320px, calc(100vw - 24px)); text-align: center; }
+.observer-shell .agent-hover {
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
+}
+.observer-shell .agent-hover .agent-tag-title { overflow: visible; white-space: normal; }
 .observer-shell .agent-hover-activity {
   display: block;
-  overflow: hidden;
   color: var(--office-secondary);
   font-weight: 500;
-  text-overflow: ellipsis;
 }
 @keyframes agent-tag-pulse {
   50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--office-warning) 35%, transparent); }

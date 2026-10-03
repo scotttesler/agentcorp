@@ -14,8 +14,6 @@ export const STALE_MS = 45_000;
 const FUTURE_MS = 5_000;
 const SNAPSHOT_WAIT_MS = 5_000;
 const RECORD_BYTES = 4096;
-const MAX_RECORDS = 200;
-const SCAN_LIMIT = 1000;
 const KEEP_MS = 30 * 24 * 60 * 60 * 1000;
 const LEFTOVER_MS = 60 * 60 * 1000;
 const TOUCH_MS = 60 * 60 * 1000;
@@ -75,10 +73,7 @@ async function inspectFolder(path) {
 
 async function listNames(folder) {
   const names = [];
-  for await (const entry of await opendir(folder)) {
-    names.push(entry.name);
-    if (names.length >= SCAN_LIMIT) break;
-  }
+  for await (const entry of await opendir(folder)) names.push(entry.name);
   return names;
 }
 
@@ -497,7 +492,7 @@ export function createPublisher({
         wake = null;
         if (stopped) return;
         found = await firstMessage(history);
-        if (found.status !== 'found') found = { status: 'found', message: firstLive };
+        if (found.status === 'none') found = { status: 'found', message: firstLive };
       }
       if (stopped) return;
       if (found.status !== 'found') throw new Error(`couldn't read this session's first message (${found.reason}).`);
@@ -566,7 +561,7 @@ function compareAgents(a, b) {
     || (a.sessionId < b.sessionId ? -1 : a.sessionId > b.sessionId ? 1 : 0);
 }
 
-export async function readRoster(office, { now = Date.now(), maxFiles = MAX_RECORDS } = {}) {
+export async function readRoster(office, { now = Date.now() } = {}) {
   const directory = folders(office).presence;
   const roster = { agents: [], counts: { needsYou: 0, error: 0, working: 0, idle: 0 } };
   for (const path of [office, directory]) {
@@ -574,18 +569,18 @@ export async function readRoster(office, { now = Date.now(), maxFiles = MAX_RECO
     if (check.missing) return roster;
     if (check.problem) return { ...roster, problem: check.problem };
   }
-  const names = (await listNames(directory)).filter(name => RECORD_NAME.test(name)).sort().slice(0, maxFiles);
-  const known = await knownMyCopilot(office, names.map(name => RECORD_NAME.exec(name)[1].toLowerCase()), now);
+  const names = (await listNames(directory)).filter(name => RECORD_NAME.test(name)).sort();
   const freshest = new Map();
   for (const name of names) {
     const [, sessionId, owner] = RECORD_NAME.exec(name);
     const agent = await readAgent(join(directory, name), sessionId, owner, now).catch(unreadable);
-    const key = agent?.sessionId.toLowerCase();
-    if (!agent || known.ids.has(key)) continue;
+    if (!agent) continue;
+    const key = agent.sessionId.toLowerCase();
     const kept = freshest.get(key);
     if (!kept || Date.parse(agent.updatedAt) > Date.parse(kept.updatedAt)) freshest.set(key, agent);
   }
-  roster.agents = [...freshest.values()].sort(compareAgents);
+  const known = await knownMyCopilot(office, [...freshest.keys()], now);
+  roster.agents = [...freshest].filter(([key]) => !known.ids.has(key)).map(([, agent]) => agent).sort(compareAgents);
   for (const agent of roster.agents) roster.counts[groupOf(agent.state)] += 1;
   if (known.problem) roster.problem = known.problem;
   return roster;

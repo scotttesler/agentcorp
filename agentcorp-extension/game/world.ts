@@ -1325,7 +1325,10 @@ export function createWorld(host: HTMLElement, simulation: Simulation, variant: 
       agentMeshes.forEach((model, index) => {
         const agent: Agent = simulation.agents[index];
         model.group.visible = model.shadow.visible = !!agent;
-        if (!agent) return;
+        if (!agent) {
+          if (model.halo) model.halo.visible = false;
+          return;
+        }
         const position = interpolatePosition(previousPositions[index], agent, alpha);
         const seated = isLive && index >= DESKS.length && agent.state === "idle" &&
           isLoungeSeat(agent.target);

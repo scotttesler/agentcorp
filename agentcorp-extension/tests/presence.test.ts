@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { PathLike, StatOptions } from "node:fs";
-import fsPromises, { lstat, mkdir, readFile, readdir, symlink, utimes, writeFile } from "node:fs/promises";
+import fsPromises, { appendFile, lstat, mkdir, readFile, readdir, symlink, utimes, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -308,6 +308,26 @@ test("a session without a prompt yet appears once its first root prompt arrives"
   await starting;
   assert.deepEqual(pick(await readRecord(office, sessionId), ["title", "state", "kind"]), { title: "New work", state: "working", kind: "thinking" });
   assert.deepEqual(reports, []);
+});
+
+test("a session whose history turns unreadable before its first prompt stays hidden", async t => {
+  const root = await temporary(t);
+  const office = join(root, OFFICE);
+  const sessionId = id(1);
+  const folder = await sessionFolder(root, sessionId, null);
+  const history = join(folder, "events.jsonl");
+  let reads = 0;
+  patchFs(t, "open", real => (async (...args: Parameters<typeof real>) => {
+    if (String(args[0]) === history && ++reads === 2) await appendFile(history, "not an event\n");
+    return real(...args);
+  }) as typeof real);
+  const { publisher, reports } = publisherFor(t, office, sessionId);
+  const starting = publisher.start({ workspacePath: folder, metadata: rpcMetadata({ summary: "New work", currentMode: "interactive" }) });
+  publisher.onEvent(live("user.message", userMessage(topLevel("Start here."))));
+  await starting;
+  assert.equal(reads, 2);
+  assert.equal(await exists(office), false);
+  assert.deepEqual(reports.map(([kind]) => kind), ["start"]);
 });
 
 test("a session that another session started never publishes", async t => {

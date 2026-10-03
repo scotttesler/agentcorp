@@ -38,4 +38,4 @@ export function createPublisher(options?: {
   heartbeatMs?: number;
   coalesceMs?: number;
 }): Publisher;
-export function readRoster(office: string, options?: { now?: number; maxFiles?: number }): Promise<Roster>;
+export function readRoster(office: string, options?: { now?: number }): Promise<Roster>;

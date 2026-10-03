@@ -104,7 +104,18 @@ test("the roster skips stale, invalid and unsafe records", async t => {
   await symlink(elsewhere, join(office, "presence", named(20)));
   if (process.getuid?.() !== 0) await chmod(await putRecord(office, validRecord(id(21), now)), 0o000);
   assert.deepEqual((await readRoster(office, { now })).agents.map(agent => agent.sessionId), [id(1), id(2)]);
-  assert.deepEqual((await readRoster(office, { now, maxFiles: 1 })).agents.map(agent => agent.sessionId), [id(1)]);
+});
+
+test("expired records never crowd out a session that needs you", async t => {
+  const root = await temporary(t);
+  const office = await officeFolders(root, "presence");
+  const now = Date.now();
+  const expired = { updatedAt: new Date(now - 46_000).toISOString(), since: new Date(now - 50_000).toISOString() };
+  for (let n = 1; n <= 250; n += 1) await putRecord(office, validRecord(id(n), now, expired));
+  await putRecord(office, validRecord(id(999), now, { state: "permission" }));
+  const roster = await readRoster(office, { now });
+  assert.deepEqual(roster.agents.map(agent => agent.sessionId), [id(999)]);
+  assert.deepEqual(roster.counts, { needsYou: 1, error: 0, working: 0, idle: 0 });
 });
 
 test("the roster fails instead of guessing when a record or marker can't be read", async t => {
