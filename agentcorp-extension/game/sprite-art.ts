@@ -366,12 +366,14 @@ export function stationNoticeArt(status: "queued" | "assigned" | "working" | "co
 }
 
 export type LiveNoticeActivity =
-  "thinking" | "terminal" | "checks" | "research" | "editing" | "delegating" | "working" | "blocked";
+  "thinking" | "terminal" | "checks" | "research" | "editing" | "delegating" | "working" | "blocked" |
+  "question" | "plan" | "error";
 
 export function liveNoticeArt(activity: LiveNoticeActivity): THREE.CanvasTexture {
   const accents: Record<LiveNoticeActivity, string> = {
     thinking: "#deb77f", terminal: "#8bbde0", checks: "#79bc9d", research: "#a6c993",
     editing: "#e4a182", delegating: "#b6a0d4", working: "#79c8ba", blocked: "#d9858b",
+    question: "#f0b85a", plan: "#8fb3e8", error: "#8d8fa8",
   };
   return texture(48, 48, (ctx) => {
     const accent = accents[activity];
@@ -478,6 +480,42 @@ export function liveNoticeArt(activity: LiveNoticeActivity): THREE.CanvasTexture
         ctx.stroke();
         pixel(ctx, outline, 22, 22, 4, 7);
         pixel(ctx, outline, 22, 31, 4, 3);
+        break;
+      case "question":
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(24, 22, 6, Math.PI, Math.PI / 2);
+        ctx.lineTo(24, 30);
+        ctx.stroke();
+        pixel(ctx, outline, 22, 33, 4, 4);
+        break;
+      case "plan":
+        pixel(ctx, outline, 14, 17, 20, 21);
+        pixel(ctx, "#f2e2c0", 16, 19, 16, 17);
+        pixel(ctx, outline, 19, 15, 10, 5);
+        pixel(ctx, "#fff8e9", 22, 16, 4, 2);
+        pixel(ctx, outline, 18, 24, 12, 2);
+        pixel(ctx, outline, 18, 28, 12, 2);
+        pixel(ctx, outline, 18, 32, 8, 2);
+        break;
+      case "error":
+        oval(ctx, outline, 19, 24, 5, 4);
+        oval(ctx, outline, 26, 21, 6, 5);
+        oval(ctx, outline, 31, 25, 4, 3);
+        pixel(ctx, outline, 15, 25, 19, 4);
+        ctx.fillStyle = "#f5c451";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(25, 28);
+        ctx.lineTo(20, 35);
+        ctx.lineTo(24, 35);
+        ctx.lineTo(22, 40);
+        ctx.lineTo(29, 32);
+        ctx.lineTo(25, 32);
+        ctx.lineTo(27, 28);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
         break;
       default: {
         const unknown: never = activity;

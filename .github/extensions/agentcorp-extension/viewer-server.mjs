@@ -1,3 +1,4 @@
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { dirname, extname, resolve, sep } from "node:path";
@@ -8,6 +9,12 @@ const viewer = resolve(dirname(fileURLToPath(import.meta.url)), "viewer");
 const mime = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml" };
 
 export async function startServer(root) {
+  const key = randomBytes(16).toString("hex");
+  const keyBytes = Buffer.from(key);
+  const keyed = url => {
+    const given = Buffer.from(url.searchParams.get("key") ?? "");
+    return given.length === keyBytes.length && timingSafeEqual(given, keyBytes);
+  };
   const server = createServer(async (request, response) => {
     try {
       const address = server.address();
@@ -15,8 +22,10 @@ export async function startServer(root) {
         response.writeHead(403); response.end(); return;
       }
       if (request.method !== "GET") { response.writeHead(405); response.end(); return; }
-      const path = new URL(request.url ?? "/", `http://127.0.0.1:${address.port}`).pathname;
+      const url = new URL(request.url ?? "/", `http://127.0.0.1:${address.port}`);
+      const path = url.pathname;
       if (path === "/api/observations") {
+        if (!keyed(url)) { response.writeHead(403); response.end(); return; }
         const observation = await snapshot(root);
         response.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
         response.end(JSON.stringify(observation));
@@ -37,5 +46,5 @@ export async function startServer(root) {
     server.once("error", reject);
     server.listen(0, "127.0.0.1", done);
   });
-  return { server, url: `http://127.0.0.1:${server.address().port}/` };
+  return { server, url: `http://127.0.0.1:${server.address().port}/?key=${key}` };
 }

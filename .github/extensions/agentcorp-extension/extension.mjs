@@ -1,22 +1,24 @@
-import { randomUUID } from "node:crypto";
+import { setTimeout as sleep } from "node:timers/promises";
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
-import { clearHeartbeat, heartbeat, validId } from "./observations.mjs";
+import { createPublisher } from "./presence.mjs";
 import { shouldRegister } from "./provider-selection.mjs";
 import { startServer } from "./viewer-server.mjs";
 
-const owner = randomUUID();
 const servers = new Map();
-let phase = "idle";
-let writing = Promise.resolve();
-let stopped = false;
-let timer;
 const active = await shouldRegister(import.meta.url);
+const publisher = active ? createPublisher({ sessionId: process.env.SESSION_ID }) : null;
+if (publisher) {
+  process.on("exit", () => publisher.stop());
+  const quit = () => Promise.race([publisher.stop(), sleep(1000)]).then(() => process.exit(0));
+  for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, quit);
+}
 
 const session = await joinSession({
+  ...(publisher && { onEvent: event => publisher.onEvent(event) }),
   canvases: active ? [createCanvas({
     id: "agentcorp-observer",
     displayName: "AgentCorp · Live sessions",
-    description: "Read-only 3D office for fresh local AgentCorp heartbeat producers.",
+    description: "Read-only 3D office of your top-level Copilot sessions on this computer, showing who needs you, who is working and who is idle.",
     open: async ({ instanceId, sessionId }) => {
       let entry = servers.get(instanceId);
       if (!entry) {
@@ -36,37 +38,4 @@ const session = await joinSession({
 });
 
 if (!active) console.error("AgentCorp observer inactive: another user-scope observer owns this canvas.");
-const id = validId(session.sessionId);
-function publish(next) {
-  phase = next;
-  writing = writing.then(() => heartbeat(id, phase, owner)).catch(error => {
-    console.error("AgentCorp heartbeat failed:", error);
-  });
-}
-if (active) {
-  publish("idle");
-  timer = setInterval(() => publish(phase), 10_000);
-  timer.unref();
-  for (const [event, next] of [
-    ["user.message", "thinking"],
-    ["assistant.turn_start", "thinking"],
-    ["tool.execution_start", "tool"],
-    ["tool.execution_complete", "thinking"],
-    ["permission.requested", "blocked"],
-    ["permission.completed", "thinking"],
-    ["assistant.turn_end", "idle"],
-    ["session.idle", "idle"],
-    ["session.error", "offline"],
-  ]) session.on(event, () => publish(next));
-  process.on("SIGTERM", () => { void shutdown().catch(error => console.error("AgentCorp shutdown failed:", error)); });
-  process.on("SIGINT", () => { void shutdown().catch(error => console.error("AgentCorp shutdown failed:", error)); });
-}
-
-async function shutdown() {
-  if (stopped) return;
-  stopped = true;
-  clearInterval(timer);
-  await writing;
-  await clearHeartbeat(id, owner);
-  await Promise.all([...servers.values()].map(entry => new Promise(done => entry.server.close(done))));
-}
+if (publisher) void publisher.start({ workspacePath: session.workspacePath, metadata: session.rpc.metadata });

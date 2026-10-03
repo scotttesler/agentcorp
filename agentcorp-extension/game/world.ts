@@ -327,16 +327,18 @@ export type World = {
   focusAgent: (index: number | null) => void;
   setAgentPersona: (index: number, persona: number) => void;
   projectDesk: (index: number) => { x: number; y: number } | null;
-  projectAgent: (index: number) => { x: number; y: number } | null;
+  projectAgent: (index: number, height?: number) => { x: number; y: number } | null;
   dispose: () => void;
 };
 
 export type WorldInteraction = {
   onAgentHover: (index: number | null, clientX: number, clientY: number) => void;
   onAgentSelect: (index: number) => void;
+  agentTagAt?: (clientX: number, clientY: number) => number | null;
   onEmptySelect?: (clientX: number, clientY: number) => void;
   onFocusCleared?: () => void;
   noticeActivityForStation?: (index: number) => LiveNoticeActivity | null;
+  attentionForAgent?: (index: number) => boolean;
 };
 
 export function createWorld(host: HTMLElement, simulation: Simulation, variant: "game" | "live" = "game",
@@ -892,6 +894,9 @@ export function createWorld(host: HTMLElement, simulation: Simulation, variant: 
     delegating: track(liveNoticeArt("delegating")),
     working: track(liveNoticeArt("working")),
     blocked: track(liveNoticeArt("blocked")),
+    question: track(liveNoticeArt("question")),
+    plan: track(liveNoticeArt("plan")),
+    error: track(liveNoticeArt("error")),
   } : null;
   const notices = stationPositions.map(({ x, z }, index) => {
     const mesh = new THREE.Mesh(
@@ -1013,6 +1018,8 @@ export function createWorld(host: HTMLElement, simulation: Simulation, variant: 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const pickAgent = (event: PointerEvent): number | null => {
+    const tagged = interaction?.agentTagAt?.(event.clientX, event.clientY) ?? null;
+    if (tagged !== null) return tagged;
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.set((event.clientX - rect.left) / rect.width * 2 - 1,
       -(event.clientY - rect.top) / rect.height * 2 + 1);
@@ -1137,10 +1144,10 @@ export function createWorld(host: HTMLElement, simulation: Simulation, variant: 
       return desk ?
         projectPoint(desk.x, 1.4, desk.z) : null;
     },
-    projectAgent(index) {
+    projectAgent(index, height = 1.15) {
       const agent = simulation.agents[index];
       return agent && index < simulation.progress.capacity && agent.x < 50 ?
-        projectPoint(agent.x, 1.15, agent.z) : null;
+        projectPoint(agent.x, height, agent.z) : null;
     },
     render(elapsed: number, previewOffset: number, alpha: number, advanced: boolean) {
       const now = performance.now() / 1000;
@@ -1334,12 +1341,15 @@ export function createWorld(host: HTMLElement, simulation: Simulation, variant: 
         (model.shadow.material as THREE.MeshBasicMaterial).opacity =
           (index === selectedAgent && isLive ? 0.7 : 0.54) * (0.72 + daylightShadow * 0.28);
         if (model.halo) {
-          model.halo.visible = index === selectedAgent && agent.x < 50;
+          const attention = index < simulation.progress.capacity && !!interaction?.attentionForAgent?.(index);
+          model.halo.visible = (attention || index === selectedAgent) && agent.x < 50;
           if (model.halo.visible) {
+            const material = model.halo.material as THREE.MeshBasicMaterial;
+            const pulse = reducedMotion ? 0 : Math.sin(animationTime * (attention ? 3.2 : 2.4));
+            material.color.setHex(attention ? 0xff8a65 : 0xffcf89);
             model.halo.position.set(position.x, 0.105, position.z);
-            model.halo.scale.setScalar(reducedMotion ? 1 : 1 + Math.sin(animationTime * 2.4) * 0.045);
-            (model.halo.material as THREE.MeshBasicMaterial).opacity =
-              reducedMotion ? 0.4 : 0.35 + Math.sin(animationTime * 2.4) * 0.11;
+            model.halo.scale.setScalar(1 + pulse * (attention ? 0.08 : 0.045));
+            material.opacity = attention ? 0.62 + pulse * 0.2 : reducedMotion ? 0.4 : 0.35 + pulse * 0.11;
           }
         }
         if (agent.state === "idle") {

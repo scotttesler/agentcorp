@@ -1,11 +1,20 @@
+import type { Counts } from "./presence.mjs";
+import type { Kind, Mode, State } from "./status.mjs";
+
+export type Observed = {
+  id: string;
+  title: string;
+  mode: Mode | null;
+  state: State;
+  kind: Kind | null;
+  activity: string;
+  since: string;
+  url: string;
+};
 export const MAX_DESKS: number;
-export const EXPIRY_MS: number;
-export const dataDir: string;
-export function validId(id: unknown): string;
-export function heartbeat(id: string, phase: "idle" | "thinking" | "tool" | "blocked" | "offline", owner: string, now?: number): Promise<void>;
-export function clearHeartbeat(id: string, owner: string): Promise<void>;
 export function snapshot(root: string, now?: number): Promise<{
   root: string;
-  sessions: { id: string; phase: "idle" | "thinking" | "tool" | "blocked"; present: true }[];
+  sessions: Observed[];
   overflow: number;
+  counts: Counts;
 }>;
