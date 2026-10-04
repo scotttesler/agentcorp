@@ -48,9 +48,140 @@
 .observer-shell .status-idle { background: var(--office-accent-bg); color: var(--office-accent); }
 .observer-shell .world-callout.live-callout { z-index: 3; }
 .observer-shell button:focus-visible { outline: 2px solid var(--office-accent); outline-offset: 2px; }
+.observer-shell .observer-agent-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--office-border);
+}
+.observer-shell .observer-agent-item > .observer-agent-row { flex: 1; min-width: 0; border-bottom: 0; }
+.observer-shell .observer-agent-item.needs-you { box-shadow: inset 3px 0 0 var(--office-warning); }
+.observer-shell .observer-agent-row .activity-current { display: block; }
+.observer-shell .session-open {
+  flex: none;
+  margin-right: 4px;
+  padding: 5px 9px;
+  border: 1px solid var(--office-border);
+  border-radius: 6px;
+  background: var(--office-panel);
+  color: var(--office-accent);
+  font: 650 11px var(--sans);
+  text-decoration: none;
+}
+.observer-shell .session-open:hover { background: var(--office-muted); }
+.observer-shell .session-open:focus-visible { outline: 2px solid var(--office-accent); outline-offset: 2px; }
+.observer-shell .status-working { background: var(--office-purple-bg); color: var(--office-purple); }
+.observer-shell .status-question,
+.observer-shell .status-permission,
+.observer-shell .status-plan-ready { background: var(--office-warning-bg); color: var(--office-warning); }
+.observer-shell .status-error { background: var(--office-muted); color: var(--office-warning); }
+.observer-shell .mode-badge {
+  flex: none;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--office-muted);
+  color: var(--office-secondary);
+  font: 650 9.5px/1.2 var(--sans);
+}
+.observer-shell .mode-plan { background: var(--office-accent-bg); color: var(--office-accent); }
+.observer-shell .mode-autopilot { background: var(--office-purple-bg); color: var(--office-purple); }
+.observer-shell .agent-tags {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.observer-shell .agent-tag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  max-width: 150px;
+  padding: 3px 6px 4px;
+  border: 1px solid var(--office-border);
+  border-radius: 6px;
+  background: var(--office-panel);
+  box-shadow: 0 3px 8px var(--office-shadow);
+  color: var(--office-text);
+  font: 600 10.5px/1.3 var(--sans);
+  text-align: center;
+  visibility: hidden;
+}
+.observer-shell .agent-tag[data-placed] { visibility: visible; }
+.observer-shell .agent-tag::before {
+  position: absolute;
+  top: -4px;
+  left: calc(var(--anchor, 50%) - 3.5px);
+  box-sizing: border-box;
+  width: 7px;
+  height: 7px;
+  border: inherit;
+  border-right: 0;
+  border-bottom: 0;
+  background: inherit;
+  content: "";
+  transform: rotate(45deg);
+}
+.observer-shell .agent-tag[data-side="above"]::before {
+  top: auto;
+  bottom: -4px;
+  border: inherit;
+  border-top: 0;
+  border-left: 0;
+}
+.observer-shell .agent-tag-name { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
+.observer-shell .agent-tag-title { overflow: hidden; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
+.observer-shell .agent-tag .mode-badge { padding: 1px 4px; font-size: 8.5px; }
+.observer-shell .agent-tag-activity {
+  display: block;
+  overflow: hidden;
+  color: var(--office-secondary);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.observer-shell .tag-question,
+.observer-shell .tag-permission,
+.observer-shell .tag-plan-ready {
+  z-index: 1;
+  border-color: var(--office-warning);
+  background: var(--office-warning-bg);
+  animation: agent-tag-pulse 1.6s ease-in-out infinite;
+}
+.observer-shell .tag-question .agent-tag-activity,
+.observer-shell .tag-permission .agent-tag-activity,
+.observer-shell .tag-plan-ready .agent-tag-activity,
+.observer-shell .tag-error .agent-tag-activity { color: var(--office-warning); }
+.observer-shell .tag-error { border-style: dashed; border-color: var(--office-warning); }
+.observer-shell .agent-hover {
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
+  visibility: hidden;
+}
+.observer-shell .agent-hover[data-placed] { visibility: visible; }
+.observer-shell .agent-hover .agent-tag-title { overflow: visible; white-space: normal; }
+.observer-shell .agent-hover-activity {
+  display: block;
+  color: var(--office-secondary);
+  font-weight: 500;
+}
+@keyframes agent-tag-pulse {
+  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--office-warning) 35%, transparent); }
+}
 @media (prefers-reduced-motion: reduce) {
   .observer-shell:not(.activity-visible) .top-stats { transition: none; }
+  .observer-shell .agent-tag { animation: none; }
 }
 @media (max-width: 700px) {
   .observer-shell .observer-count { display: none; }
+}
+@media (max-width: 560px) {
+  .observer-shell .agent-tag { max-width: 112px; }
+  .observer-shell .tag-working .agent-tag-activity { display: none; }
 }

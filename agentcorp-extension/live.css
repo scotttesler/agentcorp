@@ -361,9 +361,8 @@
   line-height: 1.2;
   text-transform: capitalize;
 }
-.activity-tag-live, .status-tool { background: var(--office-accent-bg); color: var(--office-accent); }
-.status-thinking { background: var(--office-purple-bg); color: var(--office-purple); }
-.activity-tag-warning, .status-blocked, .activity-chips .attention {
+.activity-tag-live { background: var(--office-accent-bg); color: var(--office-accent); }
+.activity-tag-warning, .activity-chips .attention {
   background: var(--office-warning-bg);
   color: var(--office-warning);
 }
