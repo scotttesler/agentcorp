@@ -108,6 +108,13 @@ function feed(line, bytes) {
   return true;
 }
 
+function messageOf(data) {
+  if (!data || typeof data !== 'object') return null;
+  const { content, transformedContent } = data;
+  if (typeof content !== 'string' || (transformedContent !== undefined && typeof transformedContent !== 'string')) return null;
+  return { content, transformedContent };
+}
+
 function parseLine(line) {
   let event;
   try {
@@ -115,9 +122,9 @@ function parseLine(line) {
   } catch {
     return null;
   }
-  if (event?.type !== 'user.message' || !event.data || typeof event.data !== 'object') return { status: 'unknown', reason: 'format' };
-  if (event.agentId) return { status: 'skip' };
-  return { status: 'found', message: { content: event.data.content, transformedContent: event.data.transformedContent } };
+  const message = event?.type === 'user.message' ? messageOf(event.data) : null;
+  if (!message) return { status: 'unknown', reason: 'format' };
+  return event.agentId ? { status: 'skip' } : { status: 'found', message };
 }
 
 export async function firstMessage(path, { retries = 4, retryMs = 250 } = {}) {
@@ -459,8 +466,9 @@ export function createPublisher({
   function onEvent(event) {
     if (stopped || !event || typeof event !== 'object') return;
     try {
-      if (role === 'pending' && !firstLive && event.type === 'user.message' && !event.agentId && event.data && typeof event.data === 'object') {
-        firstLive = { content: event.data.content, transformedContent: event.data.transformedContent };
+      if (role === 'pending' && !firstLive && event.type === 'user.message' && !event.agentId) {
+        const message = messageOf(event.data);
+        firstLive = message ? { status: 'found', message } : { status: 'unknown', reason: 'format' };
         wake?.();
       }
       const before = state;
@@ -496,7 +504,7 @@ export function createPublisher({
         wake = null;
         if (stopped) return;
         found = await firstMessage(history);
-        if (found.status === 'none') found = { status: 'found', message: firstLive };
+        if (found.status === 'none') found = firstLive;
       }
       if (stopped) return;
       if (found.status !== 'found') throw new Error(`couldn't read this session's first message (${found.reason}).`);

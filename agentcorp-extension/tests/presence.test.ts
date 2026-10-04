@@ -47,6 +47,14 @@ test("the first message scan reads only the head of the history and fails closed
   assert.deepEqual(await firstMessage(file), { status: "unknown", reason: "parse" });
   await writeFile(file, lines({ type: "user.message", data: "text" }));
   assert.deepEqual(await firstMessage(file), { status: "unknown", reason: "format" });
+  const textless: Array<[unknown, string?]> = [
+    [{}], [{ content: { text: "Hidden." } }], [{ transformedContent: "Only transformed." }],
+    [{ content: "Shown.", transformedContent: ["Hidden."] }], [{}, HELPER],
+  ];
+  for (const [data, agentId] of textless) {
+    await writeFile(file, lines(ev("session.start"), ev("user.message", data, 20, { agentId })));
+    assert.deepEqual(await firstMessage(file), { status: "unknown", reason: "format" }, JSON.stringify({ data, agentId }));
+  }
   const link = join(root, "linked.jsonl");
   await symlink(file, link);
   assert.deepEqual(await firstMessage(link), { status: "unknown", reason: "ELOOP" });
@@ -356,6 +364,24 @@ test("a session whose history turns unreadable before its first prompt stays hid
   assert.equal(reads, 2);
   assert.equal(await exists(office), false);
   assert.deepEqual(reports.map(([kind]) => kind), ["start"]);
+});
+
+test("a session whose first prompt has no text stays hidden, whether saved or live", async t => {
+  const root = await temporary(t);
+  const office = join(root, OFFICE);
+  const saved = await sessionFolder(root, id(1), null);
+  await appendFile(join(saved, "events.jsonl"), lines(ev("user.message", {}, 1000)));
+  const first = publisherFor(t, office, id(1));
+  await first.publisher.start({ workspacePath: saved, metadata: rpcMetadata({ summary: "New work", currentMode: "interactive" }) });
+  const fresh = await sessionFolder(root, id(2), null);
+  const second = publisherFor(t, office, id(2));
+  const starting = second.publisher.start({ workspacePath: fresh, metadata: rpcMetadata({ summary: "New work", currentMode: "interactive" }) });
+  await sleep(50);
+  second.publisher.onEvent(live("user.message", { content: { text: "Start here." } }));
+  second.publisher.onEvent(live("user.message", userMessage(topLevel("Start here."))));
+  await starting;
+  assert.equal(await exists(office), false);
+  assert.deepEqual([...first.reports, ...second.reports].map(([kind]) => kind), ["start", "start"]);
 });
 
 test("a session that another session started never publishes", async t => {
