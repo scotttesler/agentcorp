@@ -293,6 +293,34 @@ test("a title that repeats the first prompt is neither shown nor remembered", as
   assert.deepEqual(reports, []);
 });
 
+test("a heartbeat snapshot that answers late cannot bring back a renamed session's old name", async t => {
+  const root = await temporary(t);
+  const office = join(root, OFFICE);
+  const sessionId = id(1);
+  const folder = await sessionFolder(root, sessionId, topLevel("Plan the release."));
+  const named = (name: string) => ({ currentMode: "interactive", workspace: { name, user_named: true } });
+  const stand = rpcMetadata(named("Old name"));
+  const held: Array<(value: unknown) => void> = [];
+  let hold = false;
+  const slow: Stand = { ...stand, snapshot: () => hold ? new Promise(resolve => { held.push(resolve); }) : stand.snapshot() };
+  cleanUp(t, () => { for (const resolve of held) resolve(named("Old name")); });
+  const { publisher, reports } = publisherFor(t, office, sessionId, { heartbeatMs: 30 });
+  await publisher.start({ workspacePath: folder, metadata: slow });
+  const path = await recordOf(office, sessionId);
+  assert.equal((await readJson(path)).title, "Old name");
+
+  hold = true;
+  await eventually(() => assert.ok(held.length > 0));
+  publisher.onEvent(live("session.title_changed", { title: "New name" }));
+  const older = held.slice(0, -1);
+  held.at(-1)?.(named("New name"));
+  await eventually(async () => assert.equal((await readJson(path)).title, "New name"));
+  for (const resolve of older) resolve(named("Old name"));
+  await sleep(100);
+  assert.equal((await readJson(path)).title, "New name");
+  assert.deepEqual(reports, []);
+});
+
 test("a session without a prompt yet appears once its first root prompt arrives", async t => {
   const root = await temporary(t);
   const office = join(root, OFFICE);

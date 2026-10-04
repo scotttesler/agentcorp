@@ -263,6 +263,8 @@ export function createPublisher({
   let signature = '';
   let savedTitle = null;
   let serial = 0;
+  let asked = 0;
+  let answered = 0;
   let checking = false;
   let inferred = false;
   let queue = Promise.resolve();
@@ -355,10 +357,12 @@ export function createPublisher({
 
   async function refresh() {
     if (!source || stopped) return;
+    const ask = ++asked;
     const modeEvents = state.modeEvents;
     try {
       const value = await source();
-      if (stopped) return;
+      if (stopped || ask < answered) return;
+      answered = ask;
       snapshot = pickSnapshot(value);
       if (state.modeEvents === modeEvents && MODES.includes(snapshot.currentMode) && snapshot.currentMode !== state.mode) {
         state = { ...state, mode: snapshot.currentMode };
