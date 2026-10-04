@@ -2,10 +2,13 @@ export type Rect = { left: number; top: number; right: number; bottom: number };
 export type TagBox = { id: string; x: number; width: number; height: number; agent: Rect };
 export type TagSide = "below" | "above";
 export type TagPosition = { left: number; top: number; side: TagSide };
+export type Size = { width: number; height: number };
 
 export const TAG_GAP = 5;
 export const TAG_ANCHOR_INSET = 10;
 export const TAG_NUDGES = [0, 6, 12];
+export const HOVER_GAP = 15;
+export const HOVER_MARGIN = 8;
 const EPSILON = 1e-6;
 
 type Slot = {
@@ -84,4 +87,14 @@ export function placeTags(tags: readonly TagBox[], viewport: { width: number; he
   });
   return new Map<string, TagPosition>(accepted.map((slot, index) =>
     [slot.id, { left: lefts[index], top: slot.top, side: slot.side }]));
+}
+
+export function placeHover(agent: { x: number; top: number; bottom: number }, card: Size, office: Size) {
+  const lowest = office.height - HOVER_MARGIN - card.height;
+  const above = agent.top - HOVER_GAP - card.height;
+  const below = agent.bottom + HOVER_GAP;
+  return {
+    left: Math.max(HOVER_MARGIN, Math.min(office.width - HOVER_MARGIN - card.width, agent.x - card.width / 2)),
+    top: Math.max(HOVER_MARGIN, Math.min(lowest, above >= HOVER_MARGIN || below > lowest ? above : below)),
+  };
 }

@@ -155,12 +155,16 @@
 .observer-shell .tag-error .agent-tag-activity { color: var(--office-warning); }
 .observer-shell .tag-error { border-style: dashed; border-color: var(--office-warning); }
 .observer-shell .agent-hover {
+  top: 0;
+  left: 0;
   width: max-content;
   max-width: min(320px, calc(100vw - 24px));
   overflow-wrap: anywhere;
   text-align: center;
   white-space: normal;
+  visibility: hidden;
 }
+.observer-shell .agent-hover[data-placed] { visibility: visible; }
 .observer-shell .agent-hover .agent-tag-title { overflow: visible; white-space: normal; }
 .observer-shell .agent-hover-activity {
   display: block;

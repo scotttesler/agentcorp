@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { TAG_ANCHOR_INSET, TAG_GAP, TAG_NUDGES, placeTags, type TagBox, type TagPosition } from "../src/tag-layout";
+import {
+  HOVER_GAP, HOVER_MARGIN, TAG_ANCHOR_INSET, TAG_GAP, TAG_NUDGES, placeHover, placeTags, type TagBox, type TagPosition,
+} from "../src/tag-layout";
 
 const viewport = { width: 800, height: 600 };
 type Agent = { bottom?: number; top?: number; reach?: number; width?: number; height?: number };
@@ -120,4 +122,23 @@ test("a crowded office never shows overlapping tags or a tag away from its agent
       for (const other of shown) if (other !== box) assert.ok(apart(box, other), `${box.id} overlaps ${other.id}`);
     }
   }
+});
+
+test("the hover card centers above its agent and stays inside the office", () => {
+  const card = { width: 320, height: 60 };
+  const above = 300 - HOVER_GAP - 60;
+  assert.deepEqual(placeHover({ x: 400, top: 300, bottom: 360 }, card, viewport), { left: 240, top: above });
+  assert.deepEqual(placeHover({ x: 20, top: 300, bottom: 360 }, card, viewport), { left: HOVER_MARGIN, top: above });
+  assert.deepEqual(placeHover({ x: 790, top: 300, bottom: 360 }, card, viewport),
+    { left: viewport.width - HOVER_MARGIN - 320, top: above });
+});
+
+test("the hover card drops below an agent near the top of the office", () => {
+  assert.deepEqual(placeHover({ x: 400, top: 40, bottom: 100 }, { width: 320, height: 60 }, viewport),
+    { left: 240, top: 100 + HOVER_GAP });
+});
+
+test("a hover card with no room around its agent keeps its start in view", () => {
+  assert.deepEqual(placeHover({ x: 100, top: 40, bottom: 100 }, { width: 320, height: 60 }, { width: 300, height: 150 }),
+    { left: HOVER_MARGIN, top: HOVER_MARGIN });
 });

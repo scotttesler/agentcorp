@@ -11,7 +11,7 @@ import { createWorld } from "../game/world";
 import { arrangeObservation, initials, needsYou, newAgent, noticeFor, parseObservation, sessionLink,
   type Member, type Observation } from "./observation-layout";
 import { agentPersona } from "./room";
-import { placeTags, type TagBox } from "./tag-layout";
+import { placeHover, placeTags, type TagBox } from "./tag-layout";
 
 const MODE_LABELS: Record<NonNullable<Member["mode"]>, string> = {
   interactive: "Interactive", plan: "Plan", autopilot: "Autopilot",
@@ -102,7 +102,7 @@ function Office() {
   const [themeError, setThemeError] = useState("");
   const [selected, setSelected] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
-  const [hover, setHover] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [hover, setHover] = useState<{ id: string } | null>(null);
   const hoverIndex = useRef<number | null>(null);
   const hoverLabel = useRef<HTMLDivElement>(null);
   const [previewOffset, setPreviewOffset] = useState(0);
@@ -200,7 +200,7 @@ function Office() {
           hoverIndex.current = index;
           const member = index === null ? undefined : members.current[index];
           const point = index === null ? null : world.current?.projectAgent(index);
-          setHover(member && point ? { id: member.id, ...point } : null);
+          setHover(member && point ? { id: member.id } : null);
         },
         noticeActivityForStation(index) {
           const member = members.current[index];
@@ -268,7 +268,7 @@ function Office() {
         if (hoverIndex.current === null) setHover(null);
         else {
           const point = world.current?.projectAgent(hoveredIndex);
-          setHover(point ? { id: hoveredId, ...point } : null);
+          setHover(point ? { id: hoveredId } : null);
         }
       } catch (cause) {
         if (active) setError(`Office update failed: ${cause instanceof Error ? cause.message : String(cause)}`);
@@ -318,12 +318,15 @@ function Office() {
           tag.style.setProperty("--anchor", `${(anchors.get(id) ?? left) - left}px`);
           tag.style.transform = `translate(${left}px, ${position.top}px)`;
         });
-        if (hoverIndex.current !== null && hoverLabel.current) {
+        const card = hoverLabel.current;
+        if (hoverIndex.current !== null && card) {
           const point = world.current?.projectAgent(hoverIndex.current);
-          hoverLabel.current.hidden = !point;
-          if (point) {
-            hoverLabel.current.style.left = `${point.x}px`;
-            hoverLabel.current.style.top = `${point.y}px`;
+          const feet = world.current?.projectAgent(hoverIndex.current, 0);
+          card.toggleAttribute("data-placed", !!point && !!feet);
+          if (point && feet) {
+            const { left, top } = placeHover({ x: point.x, top: point.y, bottom: feet.y },
+              { width: card.offsetWidth, height: card.offsetHeight }, { width: office.clientWidth, height: office.clientHeight });
+            card.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
           }
         }
       } else remainder = 0;
@@ -404,7 +407,7 @@ function Office() {
               {member.state !== "idle" && <span className="agent-tag-activity">{member.activity}</span>}
             </div>)}
           </div>
-          {hover && hovered && <div ref={hoverLabel} className="agent-hover" style={{ left: hover.x, top: hover.y }}>
+          {hover && hovered && <div key={hovered.id} ref={hoverLabel} className="agent-hover">
             <span className="agent-tag-name"><span className="agent-tag-title">{hovered.title}</span>
               {hovered.mode && <span className={`mode-badge mode-${hovered.mode}`}>{MODE_LABELS[hovered.mode]}</span>}</span>
             <span className="agent-hover-activity">{hovered.activity}</span>
